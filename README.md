@@ -1,10 +1,24 @@
 # agent-memory
 
+[![npm version](https://img.shields.io/npm/v/agent-memory.svg)](https://www.npmjs.com/package/agent-memory)
+[![license](https://img.shields.io/npm/l/agent-memory.svg)](https://github.com/ivanzwb/agent-memory/blob/main/LICENSE)
+[![Node.js](https://img.shields.io/node/v/agent-memory.svg)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue.svg)](https://www.typescriptlang.org/)
+
 TypeScript library providing persistent memory for AI agents — conversation history, long-term memory with vector search, knowledge base, and automatic fact extraction.
 
 English | [中文](README.zh-CN.md)
 
 > **Design Document**: [English](doc/memory-system-design.md) | [中文](doc/记忆系统框架设计.md)
+
+## Why agent-memory?
+
+Most AI agent frameworks lack built-in persistent memory. `agent-memory` fills this gap with a production-ready, embedded memory system for LLM-powered agents and chatbots. No external databases required — just `npm install` and go.
+
+- Works with **OpenAI**, **Anthropic**, **LangChain**, and any LLM/embedding provider
+- Ideal for building **RAG (Retrieval-Augmented Generation)** pipelines
+- Drop-in **context management** with automatic token budgeting
+- Local-first: all data stays on your machine via **SQLite** + **HNSW** vector index
 
 ## Features
 
@@ -232,3 +246,5 @@ Retrieval: L2 keyword + L3 vector + KB vector → merge → rank → budget fill
 ## License
 
 MIT
+
+<sub>**Keywords**: AI agent memory, LLM memory, persistent memory, conversation history, vector search, semantic search, knowledge base, RAG, retrieval-augmented generation, fact extraction, token budget, context window management, SQLite vector database, HNSW, TypeScript AI library, chatbot memory, long-term memory, OpenAI memory, Anthropic memory, LangChain memory</sub>

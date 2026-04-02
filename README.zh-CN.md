@@ -1,10 +1,24 @@
 # agent-memory
 
+[![npm version](https://img.shields.io/npm/v/agent-memory.svg)](https://www.npmjs.com/package/agent-memory)
+[![license](https://img.shields.io/npm/l/agent-memory.svg)](https://github.com/ivanzwb/agent-memory/blob/main/LICENSE)
+[![Node.js](https://img.shields.io/node/v/agent-memory.svg)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue.svg)](https://www.typescriptlang.org/)
+
 为 AI Agent 提供持久化记忆能力的 TypeScript 库 —— 对话历史、长期记忆（向量语义检索）、知识库、自动事实提取。
 
 [English](README.md) | 中文
 
 > **设计文档**：[English](doc/memory-system-design.md) | [中文](doc/记忆系统框架设计.md)
+
+## 为什么选择 agent-memory？
+
+大多数 AI Agent 框架缺少内置的持久化记忆能力。`agent-memory` 提供了一套生产级、开箱即用的嵌入式记忆系统，无需外部数据库 —— 只需 `npm install` 即可使用。
+
+- 兼容 **OpenAI**、**Anthropic**、**LangChain** 及任意 LLM / Embedding 提供商
+- 适合构建 **RAG（检索增强生成）** 管线
+- 内置 **上下文管理** 与自动 Token 预算分配
+- 本地优先：所有数据通过 **SQLite** + **HNSW** 向量索引存储在本地
 
 ## 特性
 

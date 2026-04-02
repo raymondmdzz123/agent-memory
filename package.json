@@ -20,14 +20,43 @@
   },
   "keywords": [
     "agent",
+    "agent-memory",
     "memory",
     "llm",
     "ai",
+    "artificial-intelligence",
     "embedding",
     "vector-search",
-    "sqlite"
+    "vector-database",
+    "semantic-search",
+    "sqlite",
+    "hnsw",
+    "rag",
+    "retrieval-augmented-generation",
+    "knowledge-base",
+    "fact-extraction",
+    "long-term-memory",
+    "conversational-ai",
+    "chatbot",
+    "context-window",
+    "token-budget",
+    "persistent-memory",
+    "typescript",
+    "mcp",
+    "openai",
+    "anthropic",
+    "langchain"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ivanzwb/agent-memory.git"
+  },
+  "homepage": "https://github.com/ivanzwb/agent-memory#readme",
+  "bugs": {
+    "url": "https://github.com/ivanzwb/agent-memory/issues"
+  },
+  "author": "ivanzwb",
   "dependencies": {
     "@xenova/transformers": "^2.17.0",
     "better-sqlite3": "^11.7.0",
