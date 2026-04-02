@@ -119,7 +119,7 @@ export class RetrievalEngine {
       const excerpt = row.content.length > 120
         ? row.content.slice(0, 120) + '…'
         : row.content;
-      const refText = `[知识库·${row.source}] ${row.title} — ${excerpt} (ref:${row.id})`;
+      const refText = `[Knowledge·${row.source}] ${row.title} — ${excerpt} (ref:${row.id})`;
 
       results.push({
         type: 'knowledge' as const,
@@ -193,20 +193,20 @@ export class RetrievalEngine {
 
   private roleLabel(role: string): string {
     switch (role) {
-      case 'user': return '对话历史';
-      case 'assistant': return '对话历史';
-      case 'system': return '系统';
-      default: return '对话历史';
+      case 'user': return 'Conversation';
+      case 'assistant': return 'Conversation';
+      case 'system': return 'System';
+      default: return 'Conversation';
     }
   }
 
   private categoryLabel(category: string): string {
     switch (category) {
-      case 'preference': return '偏好';
-      case 'fact': return '事实';
-      case 'episodic': return '摘要';
-      case 'procedural': return '程序';
-      default: return '记忆';
+      case 'preference': return 'Preference';
+      case 'fact': return 'Fact';
+      case 'episodic': return 'Summary';
+      case 'procedural': return 'Procedure';
+      default: return 'Memory';
     }
   }
 }

@@ -345,7 +345,7 @@ export class SqliteStorage {
     const dbPath = this.db.name;
     try {
       return fs.statSync(dbPath).size;
-    } catch {
+    } catch /* istanbul ignore next */ {
       return 0;
     }
   }

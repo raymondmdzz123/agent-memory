@@ -97,7 +97,7 @@ export class VectorIndex {
   getIndexFileSize(): number {
     try {
       return fs.existsSync(this.indexPath) ? fs.statSync(this.indexPath).size : 0;
-    } catch {
+    } catch /* istanbul ignore next */ {
       return 0;
     }
   }
