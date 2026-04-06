@@ -73,8 +73,8 @@ describe('ArchiveScheduler', () => {
 
       const now = Date.now();
       const candidates: ConversationRow[] = [
-        { id: 1, role: 'user', content: 'old msg 1', token_count: 3, importance: 0.5, created_at: now - 48 * 3600 * 1000, is_archived: 0, attachments: null, related_task_id: null, metadata: null, summary: null, ltm_ref_id: null },
-        { id: 2, role: 'assistant', content: 'old msg 2', token_count: 3, importance: 0.5, created_at: now - 47 * 3600 * 1000, is_archived: 0, attachments: null, related_task_id: null, metadata: null, summary: null, ltm_ref_id: null },
+        { id: 1, conversation_id: 'default', role: 'user', content: 'old msg 1', token_count: 3, importance: 0.5, created_at: now - 48 * 3600 * 1000, is_archived: 0, attachments: null, metadata: null, summary: null, ltm_ref_id: null },
+        { id: 2, conversation_id: 'default', role: 'assistant', content: 'old msg 2', token_count: 3, importance: 0.5, created_at: now - 47 * 3600 * 1000, is_archived: 0, attachments: null, metadata: null, summary: null, ltm_ref_id: null },
       ];
       (storage.getArchiveCandidates as jest.Mock).mockReturnValue(candidates);
 
@@ -97,8 +97,8 @@ describe('ArchiveScheduler', () => {
 
       const now = Date.now();
       const candidates: ConversationRow[] = [
-        { id: 1, role: 'user', content: 'msg 1', token_count: 3, importance: 0.5, created_at: now - 48 * 3600 * 1000, is_archived: 0, attachments: null, related_task_id: null, metadata: null, summary: null, ltm_ref_id: null },
-        { id: 2, role: 'assistant', content: 'msg 2', token_count: 3, importance: 0.5, created_at: now - 47 * 3600 * 1000, is_archived: 0, attachments: null, related_task_id: null, metadata: null, summary: null, ltm_ref_id: null },
+        { id: 1, conversation_id: 'default', role: 'user', content: 'msg 1', token_count: 3, importance: 0.5, created_at: now - 48 * 3600 * 1000, is_archived: 0, attachments: null, metadata: null, summary: null, ltm_ref_id: null },
+        { id: 2, conversation_id: 'default', role: 'assistant', content: 'msg 2', token_count: 3, importance: 0.5, created_at: now - 47 * 3600 * 1000, is_archived: 0, attachments: null, metadata: null, summary: null, ltm_ref_id: null },
       ];
       (storage.getArchiveCandidates as jest.Mock).mockReturnValue(candidates);
 
@@ -120,8 +120,8 @@ describe('ArchiveScheduler', () => {
 
       const now = Date.now();
       const candidates: ConversationRow[] = [
-        { id: 1, role: 'user', content: 'msg', token_count: 3, importance: 0.5, created_at: now - 48 * 3600 * 1000, is_archived: 0, attachments: null, related_task_id: null, metadata: null, summary: null, ltm_ref_id: null },
-        { id: 2, role: 'user', content: 'msg2', token_count: 3, importance: 0.5, created_at: now - 47 * 3600 * 1000, is_archived: 0, attachments: null, related_task_id: null, metadata: null, summary: null, ltm_ref_id: null },
+        { id: 1, conversation_id: 'default', role: 'user', content: 'msg', token_count: 3, importance: 0.5, created_at: now - 48 * 3600 * 1000, is_archived: 0, attachments: null, metadata: null, summary: null, ltm_ref_id: null },
+        { id: 2, conversation_id: 'default', role: 'user', content: 'msg2', token_count: 3, importance: 0.5, created_at: now - 47 * 3600 * 1000, is_archived: 0, attachments: null, metadata: null, summary: null, ltm_ref_id: null },
       ];
       (storage.getArchiveCandidates as jest.Mock).mockReturnValue(candidates);
 

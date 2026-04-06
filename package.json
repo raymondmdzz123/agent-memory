@@ -65,7 +65,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^20.17.0",
+    "@types/node": "^20.19.39",
     "jest": "^30.3.0",
     "rimraf": "^6.0.0",
     "ts-jest": "^29.4.9",

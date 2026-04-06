@@ -101,7 +101,7 @@ describe('AgentMemoryImpl', () => {
 
   describe('appendMessage / getConversationHistory', () => {
     it('appends and retrieves messages', async () => {
-      const id = await memory.appendMessage('user', 'Hello');
+      const id = await memory.appendMessage('default', 'user', 'Hello');
       expect(typeof id).toBe('number');
 
       const history = await memory.getConversationHistory();
@@ -111,32 +111,32 @@ describe('AgentMemoryImpl', () => {
     });
 
     it('supports metadata', async () => {
-      await memory.appendMessage('user', 'Test', { tool: 'test' });
+      await memory.appendMessage('default', 'user', 'Test', { tool: 'test' });
       const history = await memory.getConversationHistory();
       expect(history[0].metadata).toEqual({ tool: 'test' });
     });
 
     it('respects limit parameter', async () => {
-      for (let i = 0; i < 5; i++) await memory.appendMessage('user', `msg${i}`);
+      for (let i = 0; i < 5; i++) await memory.appendMessage('default', 'user', `msg${i}`);
       const limited = await memory.getConversationHistory(3);
       expect(limited).toHaveLength(3);
     });
 
     it('throws MemoryCapacityError when conversation is full', async () => {
-      for (let i = 0; i < 10; i++) await memory.appendMessage('user', `msg${i}`);
-      await expect(memory.appendMessage('user', 'overflow')).rejects.toThrow(MemoryCapacityError);
+      for (let i = 0; i < 10; i++) await memory.appendMessage('default', 'user', `msg${i}`);
+      await expect(memory.appendMessage('default', 'user', 'overflow')).rejects.toThrow(MemoryCapacityError);
     });
 
     it('triggers fact extraction for assistant messages', async () => {
-      await memory.appendMessage('user', 'I prefer Python');
-      await memory.appendMessage('assistant', 'Noted, you prefer Python.');
+      await memory.appendMessage('default', 'user', 'I prefer Python');
+      await memory.appendMessage('default', 'assistant', 'Noted, you prefer Python.');
       // Just verify it doesn't throw — fact extraction is fire-and-forget
     });
   });
 
   describe('listConversations', () => {
     it('returns paginated results', async () => {
-      for (let i = 0; i < 5; i++) await memory.appendMessage('user', `msg${i}`);
+      for (let i = 0; i < 5; i++) await memory.appendMessage('default', 'user', `msg${i}`);
       const page = await memory.listConversations(2, 2);
       expect(page).toHaveLength(2);
       expect(page[0].content).toBe('msg2');
@@ -300,7 +300,7 @@ describe('AgentMemoryImpl', () => {
 
   describe('assembleContext', () => {
     it('assembles context from messages', async () => {
-      await memory.appendMessage('user', 'Hello world');
+      await memory.appendMessage('default', 'user', 'Hello world');
       const ctx = await memory.assembleContext('Hello');
       expect(ctx).toBeDefined();
       expect(typeof ctx.text).toBe('string');
@@ -309,7 +309,7 @@ describe('AgentMemoryImpl', () => {
     });
 
     it('accepts per-call tokenBudget override', async () => {
-      await memory.appendMessage('user', 'data');
+      await memory.appendMessage('default', 'user', 'data');
       const ctx = await memory.assembleContext('data', { contextWindow: 1000 });
       expect(ctx).toBeDefined();
     });
@@ -372,7 +372,7 @@ describe('AgentMemoryImpl', () => {
     });
 
     it('handles memory_get_history', async () => {
-      await memory.appendMessage('user', 'hello');
+      await memory.appendMessage('default', 'user', 'hello');
       const result = await memory.executeTool('memory_get_history', { limit: 10 });
       expect(Array.isArray(result)).toBe(true);
     });
@@ -425,19 +425,23 @@ describe('AgentMemoryImpl', () => {
   describe('updateTokenBudget', () => {
     it('updates contextWindow', () => {
       memory.updateTokenBudget({ contextWindow: 64000 });
-      // Verify by assembling context (indirectly)
+      expect((memory as any).config.tokenBudget.contextWindow).toBe(64000);
     });
 
     it('updates systemPromptReserve', () => {
       memory.updateTokenBudget({ systemPromptReserve: 5000 });
+      expect((memory as any).config.tokenBudget.systemPromptReserve).toBe(5000);
     });
 
     it('updates outputReserve', () => {
       memory.updateTokenBudget({ outputReserve: 2000 });
+      expect((memory as any).config.tokenBudget.outputReserve).toBe(2000);
     });
 
     it('updates multiple fields', () => {
       memory.updateTokenBudget({ contextWindow: 64000, outputReserve: 2000 });
+      expect((memory as any).config.tokenBudget.contextWindow).toBe(64000);
+      expect((memory as any).config.tokenBudget.outputReserve).toBe(2000);
     });
   });
 
@@ -447,7 +451,7 @@ describe('AgentMemoryImpl', () => {
 
   describe('getStats', () => {
     it('returns stats', async () => {
-      await memory.appendMessage('user', 'Hello');
+      await memory.appendMessage('default', 'user', 'Hello');
       await memory.saveMemory('fact', 'k', 'v');
       await memory.addKnowledge('docs', 'T', 'C');
 
@@ -472,7 +476,7 @@ describe('AgentMemoryImpl', () => {
 
   describe('export / import', () => {
     it('round-trips data', async () => {
-      await memory.appendMessage('user', 'Hello');
+      await memory.appendMessage('default', 'user', 'Hello');
       await memory.saveMemory('fact', 'k', 'v');
       await memory.addKnowledge('docs', 'T', 'C');
 
@@ -523,30 +527,49 @@ describe('AgentMemoryImpl', () => {
 
   describe('fact extraction via appendMessage', () => {
     it('extracts facts from assistant reply (rule-based)', async () => {
-      await memory.appendMessage('user', 'I prefer Python for scripting');
-      await memory.appendMessage('assistant', 'Noted, you prefer Python.');
-      // Give extraction time to complete (fire-and-forget)
-      await new Promise((r) => setTimeout(r, 1500));
-      // Just verify the process completed without errors
-      // The fact extraction is fire-and-forget, so we don't assert specific results
-    });
-
-    it('handles single message (no user msg to extract from)', async () => {
-      await memory.appendMessage('assistant', 'I am ready.');
-      await new Promise((r) => setTimeout(r, 300));
-    });
-
-    it('handles extraction with dedup (same fact appears twice)', async () => {
-      await memory.appendMessage('user', 'I like TypeScript. I like TypeScript.');
-      await memory.appendMessage('assistant', 'Noted.');
-      await new Promise((r) => setTimeout(r, 1000));
-    });
-
-    it('non-assistant messages do not trigger extraction', async () => {
-      await memory.appendMessage('user', 'I like Rust');
-      await new Promise((r) => setTimeout(r, 200));
+      await memory.appendMessage('default', 'user', 'I prefer Python');
+      await memory.appendMessage('default', 'assistant', 'Noted, you prefer Python.');
+      await new Promise((r) => setTimeout(r, 500));
       const mems = await memory.listMemories({ category: 'preference' });
-      expect(mems).toHaveLength(0);
+      expect(mems.length).toBe(1);
+      expect(mems[0].key).toBe('prefers_python');
+    });
+
+    it('extracts multiple facts from different preferences', async () => {
+      await memory.appendMessage('default', 'user', 'I like Python');
+      await memory.appendMessage('default', 'assistant', 'Noted.');
+      await memory.appendMessage('default', 'user', 'I prefer Rust');
+      await memory.appendMessage('default', 'assistant', 'Noted.');
+      await new Promise((r) => setTimeout(r, 500));
+      const mems = await memory.listMemories({ category: 'preference' });
+      expect(mems.length).toBe(2);
+      const keys = mems.map(m => m.key).sort();
+      expect(keys).toContain('prefers_python');
+      expect(keys).toContain('prefers_rust');
+    });
+
+    it('extracts "avoids" pattern', async () => {
+      await memory.appendMessage('default', 'user', "I don't like Java");
+      await memory.appendMessage('default', 'assistant', 'Noted.');
+      await new Promise((r) => setTimeout(r, 500));
+      const mems = await memory.listMemories({ category: 'preference' });
+      expect(mems.length).toBe(1);
+      expect(mems[0].key).toBe('avoids_java');
+    });
+
+    it('extracts "my name is" pattern', async () => {
+      await memory.appendMessage('default', 'user', 'My name is John');
+      await memory.appendMessage('default', 'assistant', 'Hello John!');
+      await new Promise((r) => setTimeout(r, 500));
+      const mems = await memory.listMemories({ category: 'fact' });
+      expect(mems.some(m => m.key === 'user_name')).toBe(true);
+    });
+
+    it('does not extract when only user message (needs assistant)', async () => {
+      await memory.appendMessage('default', 'user', 'I like JavaScript');
+      await new Promise((r) => setTimeout(r, 500));
+      const mems = await memory.listMemories({ category: 'preference' });
+      expect(mems.length).toBe(0);
     });
   });
 });

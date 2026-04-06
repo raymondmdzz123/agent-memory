@@ -21,6 +21,7 @@ export type ToolFormat = 'openai' | 'anthropic' | 'langchain';
 /** A conversation message (Layer 2) */
 export interface Message {
   id: number;
+  conversationId: string;
   role: MessageRole;
   content: string;
   tokenCount: number;
@@ -214,11 +215,11 @@ export interface ExportData {
 
 export interface ConversationRow {
   id: number;
+  conversation_id: string;
   role: string;
   content: string;
   token_count: number;
   attachments: string | null;
-  related_task_id: string | null;
   metadata: string | null;
   summary: string | null;
   importance: number;
@@ -258,11 +259,12 @@ export interface KnowledgeChunkRow {
 export interface AgentMemory {
   // Read
   getConversationHistory(limit?: number): Promise<Message[]>;
+  getConversation(id: string, limit?: number): Promise<Message[]>;
   searchMemory(query: string, topK?: number): Promise<ScoredMemoryItem[]>;
   assembleContext(query: string, tokenBudget?: Partial<TokenBudgetConfig>): Promise<AssembledContext>;
 
   // Write
-  appendMessage(role: MessageRole, content: string, metadata?: Record<string, unknown>): Promise<number>;
+  appendMessage(conversationId: string, role: MessageRole, content: string, metadata?: Record<string, unknown>): Promise<number>;
   saveMemory(category: MemoryCategory, key: string, value: string, confidence?: number): Promise<string>;
 
   // Knowledge Base

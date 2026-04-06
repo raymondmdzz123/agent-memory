@@ -31,8 +31,8 @@ describe('SqliteStorage', () => {
 
   describe('insertMessage / getActiveMessages', () => {
     it('inserts and retrieves messages', () => {
-      const id1 = storage.insertMessage('user', 'Hello', 3);
-      const id2 = storage.insertMessage('assistant', 'Hi there', 5, { tool: 'x' });
+      const id1 = storage.insertMessage('default', 'user', 'Hello', 3);
+      const id2 = storage.insertMessage('default', 'assistant', 'Hi there', 5, { tool: 'x' });
       expect(typeof id1).toBe('number');
       expect(id2).toBeGreaterThan(id1);
 
@@ -45,17 +45,17 @@ describe('SqliteStorage', () => {
     });
 
     it('respects limit', () => {
-      storage.insertMessage('user', 'a', 1);
-      storage.insertMessage('user', 'b', 1);
-      storage.insertMessage('user', 'c', 1);
-      const msgs = storage.getActiveMessages(2);
+      storage.insertMessage('default', 'user', 'a', 1);
+      storage.insertMessage('default', 'user', 'b', 1);
+      storage.insertMessage('default', 'user', 'c', 1);
+      const msgs = storage.getActiveMessages(undefined, 2);
       expect(msgs).toHaveLength(2);
     });
   });
 
   describe('getAllMessages', () => {
     it('returns paginated results', () => {
-      for (let i = 0; i < 5; i++) storage.insertMessage('user', `msg${i}`, 1);
+      for (let i = 0; i < 5; i++) storage.insertMessage('default', 'user', `msg${i}`, 1);
       const page1 = storage.getAllMessages(0, 2);
       expect(page1).toHaveLength(2);
       expect(page1[0].content).toBe('msg0');
@@ -67,14 +67,14 @@ describe('SqliteStorage', () => {
 
   describe('getArchiveCandidates / markArchived', () => {
     it('returns candidates before timestamp', () => {
-      storage.insertMessage('user', 'old', 1);
+      storage.insertMessage('default', 'user', 'old', 1);
       const candidates = storage.getArchiveCandidates(Date.now() + 1000, 10);
       expect(candidates).toHaveLength(1);
     });
 
     it('marks messages archived', () => {
-      const id1 = storage.insertMessage('user', 'a', 1);
-      const id2 = storage.insertMessage('user', 'b', 1);
+      const id1 = storage.insertMessage('default', 'user', 'a', 1);
+      const id2 = storage.insertMessage('default', 'user', 'b', 1);
       storage.markArchived([id1, id2], 'ltm_123', 'summary text');
 
       const active = storage.getActiveMessages();
@@ -84,8 +84,8 @@ describe('SqliteStorage', () => {
 
   describe('countActiveMessages / countArchivedMessages', () => {
     it('counts correctly', () => {
-      const id1 = storage.insertMessage('user', 'a', 1);
-      storage.insertMessage('user', 'b', 1);
+      const id1 = storage.insertMessage('default', 'user', 'a', 1);
+      storage.insertMessage('default', 'user', 'b', 1);
       expect(storage.countActiveMessages()).toBe(2);
       expect(storage.countArchivedMessages()).toBe(0);
 
@@ -101,7 +101,7 @@ describe('SqliteStorage', () => {
     });
 
     it('returns latest timestamp', () => {
-      storage.insertMessage('user', 'x', 1);
+      storage.insertMessage('default', 'user', 'x', 1);
       const t = storage.getLatestMessageTime();
       expect(t).toBeGreaterThan(0);
     });
@@ -286,14 +286,14 @@ describe('SqliteStorage', () => {
 
   describe('getDbSize', () => {
     it('returns positive size', () => {
-      storage.insertMessage('user', 'hi', 1);
+      storage.insertMessage('default', 'user', 'hi', 1);
       expect(storage.getDbSize()).toBeGreaterThan(0);
     });
   });
 
   describe('exportAll / importAll', () => {
     it('round-trips data', () => {
-      storage.insertMessage('user', 'hello', 3);
+      storage.insertMessage('default', 'user', 'hello', 3);
       storage.insertLongTermMemory({
         id: 'ltm_x', category: 'fact', key: 'k', value: 'v',
         embedding_id: 'e', confidence: 0.7, access_count: 0,

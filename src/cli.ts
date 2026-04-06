@@ -67,13 +67,16 @@ async function withMemory<T>(flags: Record<string, string>, fn: (mem: AgentMemor
 // ============================================================
 
 async function cmdAppend(args: ParsedArgs): Promise<void> {
+  const conversationId = args.flags['conversation-id'] || args.flags['c'];
+  if (!conversationId) die('Usage: memory append --conversation-id <id> <role> <content>');
+  
   const role = args.positional[0] as 'user' | 'assistant' | 'system';
   const content = args.positional.slice(1).join(' ');
-  if (!role || !content) die('Usage: memory append <role> <content>');
+  if (!role || !content) die('Usage: memory append --conversation-id <id> <role> <content>');
   if (!['user', 'assistant', 'system'].includes(role)) die('Role must be user, assistant, or system');
 
   await withMemory(args.flags, async (mem) => {
-    const id = await mem.appendMessage(role, content);
+    const id = await mem.appendMessage(conversationId, role, content);
     console.log(`Message appended (id: ${id})`);
   });
 }

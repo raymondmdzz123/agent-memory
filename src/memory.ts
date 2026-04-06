@@ -138,7 +138,13 @@ export class AgentMemoryImpl implements AgentMemory {
 
   async getConversationHistory(limit?: number): Promise<Message[]> {
     this.ensureOpen();
-    const rows = this.storage.getActiveMessages(limit);
+    const rows = this.storage.getActiveMessages(undefined, limit);
+    return rows.map(rowToMessage);
+  }
+
+  async getConversation(id: string, limit?: number): Promise<Message[]> {
+    this.ensureOpen();
+    const rows = this.storage.getActiveMessages(id, limit);
     return rows.map(rowToMessage);
   }
 
@@ -175,6 +181,7 @@ export class AgentMemoryImpl implements AgentMemory {
   // ============================================================
 
   async appendMessage(
+    conversationId: string,
     role: MessageRole,
     content: string,
     metadata?: Record<string, unknown>,
@@ -192,7 +199,7 @@ export class AgentMemoryImpl implements AgentMemory {
     }
 
     const tokenCount = countTokens(content);
-    const id = this.storage.insertMessage(role, content, tokenCount, metadata);
+    const id = this.storage.insertMessage(conversationId, role, content, tokenCount, metadata);
 
     this.audit.log({ action: 'append_message', targetId: id, details: role });
 
@@ -600,6 +607,7 @@ export class AgentMemoryImpl implements AgentMemory {
 
 function rowToMessage(row: {
   id: number;
+  conversation_id: string;
   role: string;
   content: string;
   token_count: number;
@@ -608,6 +616,7 @@ function rowToMessage(row: {
 }): Message {
   return {
     id: row.id,
+    conversationId: row.conversation_id,
     role: row.role as MessageRole,
     content: row.content,
     tokenCount: row.token_count,

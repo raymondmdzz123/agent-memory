@@ -22,11 +22,11 @@ export class SqliteStorage {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS conversations (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id TEXT    NOT NULL,
         role            TEXT    NOT NULL,
         content         TEXT    NOT NULL,
         token_count     INTEGER NOT NULL DEFAULT 0,
         attachments     TEXT,
-        related_task_id TEXT,
         metadata        TEXT,
         summary         TEXT,
         importance      REAL    NOT NULL DEFAULT 0.5,
@@ -37,6 +37,9 @@ export class SqliteStorage {
 
       CREATE INDEX IF NOT EXISTS idx_conv_archived_time
         ON conversations (is_archived, created_at);
+
+      CREATE INDEX IF NOT EXISTS idx_conv_conversation
+        ON conversations (conversation_id);
 
       CREATE TABLE IF NOT EXISTS long_term_memories (
         id              TEXT    PRIMARY KEY,
@@ -73,16 +76,18 @@ export class SqliteStorage {
   // ------- Conversation -------
 
   insertMessage(
+    conversationId: string,
     role: string,
     content: string,
     tokenCount: number,
     metadata?: Record<string, unknown>,
   ): number {
     const stmt = this.db.prepare(`
-      INSERT INTO conversations (role, content, token_count, metadata, created_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO conversations (conversation_id, role, content, token_count, metadata, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     const info = stmt.run(
+      conversationId,
       role,
       content,
       tokenCount,
@@ -92,7 +97,15 @@ export class SqliteStorage {
     return Number(info.lastInsertRowid);
   }
 
-  getActiveMessages(limit?: number): ConversationRow[] {
+  getActiveMessages(conversationId?: string, limit?: number): ConversationRow[] {
+    if (conversationId) {
+      const sql = limit
+        ? `SELECT * FROM conversations WHERE is_archived = 0 AND conversation_id = ? ORDER BY created_at ASC LIMIT ?`
+        : `SELECT * FROM conversations WHERE is_archived = 0 AND conversation_id = ? ORDER BY created_at ASC`;
+      return limit
+        ? (this.db.prepare(sql).all(conversationId, limit) as ConversationRow[])
+        : (this.db.prepare(sql).all(conversationId) as ConversationRow[]);
+    }
     const sql = limit
       ? `SELECT * FROM conversations WHERE is_archived = 0 ORDER BY created_at ASC LIMIT ?`
       : `SELECT * FROM conversations WHERE is_archived = 0 ORDER BY created_at ASC`;
@@ -149,6 +162,13 @@ export class SqliteStorage {
       .prepare(`SELECT MAX(created_at) as t FROM conversations WHERE is_archived = 0`)
       .get() as { t: number | null };
     return row.t;
+  }
+
+  getActiveConversationIds(): string[] {
+    const rows = this.db
+      .prepare(`SELECT DISTINCT conversation_id FROM conversations WHERE is_archived = 0 ORDER BY created_at ASC`)
+      .all() as { conversation_id: string }[];
+    return rows.map((r) => r.conversation_id);
   }
 
   // ------- Long-term Memory -------
@@ -373,13 +393,13 @@ export class SqliteStorage {
 
       const insertConv = this.db.prepare(`
         INSERT INTO conversations
-        (id, role, content, token_count, attachments, related_task_id, metadata, summary, importance, is_archived, ltm_ref_id, created_at)
+        (id, conversation_id, role, content, token_count, attachments, metadata, summary, importance, is_archived, ltm_ref_id, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const c of conversations) {
         insertConv.run(
-          c.id, c.role, c.content, c.token_count, c.attachments,
-          c.related_task_id, c.metadata, c.summary, c.importance,
+          c.id, c.conversation_id, c.role, c.content, c.token_count, c.attachments,
+          c.metadata, c.summary, c.importance,
           c.is_archived, c.ltm_ref_id, c.created_at,
         );
       }

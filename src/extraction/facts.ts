@@ -19,11 +19,19 @@ interface ExtractionRule {
 }
 
 const RULES: ExtractionRule[] = [
-  // "I like / prefer / favor X"
+  // "I like / prefer / favor X" with punctuation
   {
-    pattern: /(?:i\s+(?:like|prefer|favor|love|enjoy|use|want))\s+(.+?)(?:\.|$)/gi,
+    pattern: /(?:i\s+(?:like|prefer|favor|love|enjoy|use|want)\s+)(.+?)(?:\.|$)/gi,
     category: 'preference',
-    keyExtractor: (m) => `prefers_${m[1].trim().slice(0, 30).replace(/\s+/g, '_').toLowerCase()}`,
+    keyExtractor: (m) => `prefers_${m[1].trim().replace(/\.+$/, '').slice(0, 30).replace(/\s+/g, '_').toLowerCase()}`,
+    valueExtractor: (m) => m[0].trim(),
+    confidence: 0.8,
+  },
+  // "I like / prefer" without punctuation
+  {
+    pattern: /(?:i\s+(?:like|prefer|favor|love|enjoy|use|want)\s+)(.+)/gi,
+    category: 'preference',
+    keyExtractor: (m) => `prefers_${m[1].trim().replace(/\.+$/, '').slice(0, 30).replace(/\s+/g, '_').toLowerCase()}`,
     valueExtractor: (m) => m[0].trim(),
     confidence: 0.8,
   },
@@ -40,6 +48,14 @@ const RULES: ExtractionRule[] = [
     pattern: /(?:don'?t|never|avoid|do not)\s+(?:use|like|want)\s+(.+?)(?:\.|$)/gi,
     category: 'preference',
     keyExtractor: (m) => `avoids_${m[1].trim().slice(0, 30).replace(/\s+/g, '_').toLowerCase()}`,
+    valueExtractor: (m) => m[0].trim(),
+    confidence: 0.8,
+  },
+  // "Don't / never use X" without punctuation
+  {
+    pattern: /(?:don'?t|never|avoid|do not)\s+(?:use|like|want)\s+(.+)/gi,
+    category: 'preference',
+    keyExtractor: (m) => `avoids_${m[1].trim().replace(/\.+$/, '').slice(0, 30).replace(/\s+/g, '_').toLowerCase()}`,
     valueExtractor: (m) => m[0].trim(),
     confidence: 0.8,
   },
@@ -68,7 +84,7 @@ const RULES: ExtractionRule[] = [
   },
   // "My name is X" / "I am X"
   {
-    pattern: /(?:my name is|i'?m called|call me)\s+(.+?)(?:\.|$)/gi,
+    pattern: /(?:my name is|i'm called|call me)\s+(.+)/gi,
     category: 'fact',
     keyExtractor: () => 'user_name',
     valueExtractor: (m) => m[0].trim(),
