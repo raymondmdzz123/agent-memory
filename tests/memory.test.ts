@@ -310,7 +310,7 @@ describe('AgentMemoryImpl', () => {
 
     it('accepts per-call tokenBudget override', async () => {
       await memory.appendMessage('default', 'user', 'data');
-      const ctx = await memory.assembleContext('data', { contextWindow: 1000 });
+      const ctx = await memory.assembleContext('data', 1000);
       expect(ctx).toBeDefined();
     });
   });

@@ -184,8 +184,8 @@ const memory = await createMemory({
 // 更新实例级预算
 memory.updateTokenBudget({ contextWindow: 32000 });
 
-// 单次调用覆盖
-const ctx = await memory.assembleContext('查询', { contextWindow: 16000 });
+// 单次调用覆盖记忆上下文的 Token 预算
+const ctx = await memory.assembleContext('查询', 16000);
 ```
 
 ## 命令行工具

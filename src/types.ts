@@ -257,17 +257,22 @@ export interface KnowledgeChunkRow {
 // ============================================================
 
 export interface AgentMemory {
-  // Read
+  // L2 Conversation Memory（对话记忆，会话级）
   getConversationHistory(limit?: number): Promise<Message[]>;
   getConversation(id: string, limit?: number): Promise<Message[]>;
-  searchMemory(query: string, topK?: number): Promise<ScoredMemoryItem[]>;
-  assembleContext(query: string, tokenBudget?: Partial<TokenBudgetConfig>): Promise<AssembledContext>;
-
-  // Write
+  listConversations(offset?: number, limit?: number): Promise<Message[]>;
   appendMessage(conversationId: string, role: MessageRole, content: string, metadata?: Record<string, unknown>): Promise<number>;
-  saveMemory(category: MemoryCategory, key: string, value: string, confidence?: number): Promise<string>;
+  /** Search conversation messages (L2) by keyword, ordered by relevance/recency */
+  searchConversation(query: string, topK?: number): Promise<Message[]>;
 
-  // Knowledge Base
+  // L3 Long-Term Memory（长期记忆，持久化）
+  saveMemory(category: MemoryCategory, key: string, value: string, confidence?: number): Promise<string>;
+  searchMemory(query: string, topK?: number): Promise<ScoredMemoryItem[]>;
+  deleteMemory(id: string): Promise<void>;
+  listMemories(filter?: MemoryFilter): Promise<MemoryItem[]>;
+  refreshAccess(id: string): Promise<void>;
+
+  // Knowledge Base（知识库，KB）
   addKnowledge(source: string, title: string, content: string, metadata?: Record<string, unknown>): Promise<string>;
   addKnowledgeBatch(chunks: Array<{ source: string; title: string; content: string; metadata?: Record<string, unknown> }>): Promise<string[]>;
   removeKnowledge(id: string): Promise<void>;
@@ -275,10 +280,8 @@ export interface AgentMemory {
   listKnowledge(source?: string): Promise<KnowledgeChunk[]>;
   searchKnowledge(query: string, topK?: number): Promise<ScoredKnowledgeChunk[]>;
 
-  // Manage
-  deleteMemory(id: string): Promise<void>;
-  listMemories(filter?: MemoryFilter): Promise<MemoryItem[]>;
-  refreshAccess(id: string): Promise<void>;
+  // Cross-layer Retrieval（跨三层记忆 + 知识库 上下文组装）
+  assembleContext(query: string, tokenBudget?: number): Promise<AssembledContext>;
 
   // LLM Tool Integration
   getToolDefinitions(format: ToolFormat): unknown[];
@@ -287,9 +290,8 @@ export interface AgentMemory {
   // Config
   updateTokenBudget(budget: Partial<TokenBudgetConfig>): void;
 
-  // Ops
+  // Ops / Maintenance
   getStats(): Promise<MemoryStats>;
-  listConversations(offset?: number, limit?: number): Promise<Message[]>;
   runMaintenance(): Promise<MaintenanceResult>;
   export(): Promise<ExportData>;
   import(data: ExportData): Promise<void>;

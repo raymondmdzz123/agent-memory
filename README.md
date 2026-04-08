@@ -184,8 +184,8 @@ Update token budget at runtime or per-call:
 // Update instance-level budget
 memory.updateTokenBudget({ contextWindow: 32000 });
 
-// Override for a single call
-const ctx = await memory.assembleContext('query', { contextWindow: 16000 });
+// Override memory context budget (tokens) for a single call
+const ctx = await memory.assembleContext('query', 16000);
 ```
 
 ## CLI

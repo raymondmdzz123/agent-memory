@@ -128,7 +128,7 @@ describe('RetrievalEngine', () => {
       const engine = new RetrievalEngine(config, storage, vectorIndex, embedding, decayManager);
 
       // With very tight budget, should truncate or exclude
-      const ctx = await engine.assembleContext('word', { contextWindow: 50 });
+      const ctx = await engine.assembleContext('word', 50);
       // Budget = 50 - 10 - 10 - 10(overhead) = 20 tokens max
       expect(ctx.tokenCount).toBeLessThan(50);
     });

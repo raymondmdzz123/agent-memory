@@ -17,14 +17,13 @@ export class RetrievalEngine {
     private decayManager: DecayManager,
   ) {}
 
-  async assembleContext(query: string, tokenBudgetOverride?: Partial<import('../types').TokenBudgetConfig>): Promise<AssembledContext> {
-    // Merge per-call override with global config
-    const tb = tokenBudgetOverride
-      ? { ...this.config.tokenBudget, ...tokenBudgetOverride }
-      : this.config.tokenBudget;
-
-    // Compute available budget
-    const budget = tb.contextWindow - tb.systemPromptReserve - tb.outputReserve;
+  async assembleContext(query: string, tokenBudget?: number): Promise<AssembledContext> {
+    // Compute available budget for memory context
+    const defaultBudget =
+      this.config.tokenBudget.contextWindow -
+      this.config.tokenBudget.systemPromptReserve -
+      this.config.tokenBudget.outputReserve;
+    const budget = tokenBudget ?? defaultBudget;
 
     // Phase 1: Parallel retrieval
     const [convResults, ltmResults, kbResults] = await Promise.all([
@@ -83,6 +82,9 @@ export class RetrievalEngine {
     for (const { id, score } of searchResults) {
       const row = this.storage.getLongTermMemory(id);
       if (!row || row.is_active !== 1) continue;
+
+      // Refresh access on hit so decay / forgetting uses latest access time
+      this.storage.refreshAccess(row.id);
 
       const decay = this.decayManager.decayFactor(row.created_at, row.last_accessed);
       const importanceScore = row.confidence * (1 + Math.log1p(row.access_count));

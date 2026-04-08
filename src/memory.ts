@@ -133,43 +133,9 @@ export class AgentMemoryImpl implements AgentMemory {
   }
 
   // ============================================================
-  //  Read
+  //  三层记忆检索与上下文组装（跨对话记忆 L2 / 长期记忆 L3 / 知识库）
   // ============================================================
-
-  async getConversationHistory(limit?: number): Promise<Message[]> {
-    this.ensureOpen();
-    const rows = this.storage.getActiveMessages(undefined, limit);
-    return rows.map(rowToMessage);
-  }
-
-  async getConversation(id: string, limit?: number): Promise<Message[]> {
-    this.ensureOpen();
-    const rows = this.storage.getActiveMessages(id, limit);
-    return rows.map(rowToMessage);
-  }
-
-  async searchMemory(query: string, topK = 5): Promise<ScoredMemoryItem[]> {
-    this.ensureOpen();
-    const queryVector = await this.config.embedding.embed(query);
-    const results = this.vectorIndex.search(queryVector, topK);
-
-    const items: ScoredMemoryItem[] = [];
-    for (const { id, score } of results) {
-      const row = this.storage.getLongTermMemory(id);
-      if (!row || row.is_active !== 1) continue;
-
-      // Refresh access on hit
-      this.storage.refreshAccess(id);
-
-      items.push({
-        ...rowToMemoryItem(row),
-        score,
-      });
-    }
-    return items;
-  }
-
-  async assembleContext(query: string, tokenBudget?: Partial<TokenBudgetConfig>): Promise<AssembledContext> {
+  async assembleContext(query: string, tokenBudget?: number): Promise<AssembledContext> {
     this.ensureOpen();
     // Lazily trigger archive check
     await this.archiveScheduler.tryArchive();
@@ -177,7 +143,7 @@ export class AgentMemoryImpl implements AgentMemory {
   }
 
   // ============================================================
-  //  Write
+  //  L2 对话记忆（会话级）
   // ============================================================
 
   async appendMessage(
@@ -211,6 +177,104 @@ export class AgentMemoryImpl implements AgentMemory {
     return id;
   }
 
+  async searchConversation(query: string, topK = 5): Promise<Message[]> {
+    this.ensureOpen();
+
+    const messages = this.storage.getActiveMessages();
+    const queryLower = query.toLowerCase();
+    const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 1);
+    const now = Date.now();
+
+    type Scored = {
+      row: {
+        id: number;
+        conversation_id: string;
+        role: string;
+        content: string;
+        token_count: number;
+        metadata: string | null;
+        created_at: number;
+        importance: number;
+      };
+      relevance: number;
+      recency: number;
+      importance: number;
+    };
+
+    const scored: Scored[] = [];
+
+    for (const msg of messages as Scored['row'][]) {
+      const contentLower = msg.content.toLowerCase();
+      let matchCount = 0;
+      for (const term of queryTerms) {
+        if (contentLower.includes(term)) matchCount++;
+      }
+      if (matchCount === 0 && queryTerms.length > 0) continue;
+
+      const relevance = queryTerms.length > 0 ? matchCount / queryTerms.length : 0.3;
+      const ageMs = now - msg.created_at;
+      const recency = Math.exp(-ageMs / (24 * 3600 * 1000));
+
+      scored.push({
+        row: msg,
+        relevance,
+        recency,
+        importance: msg.importance,
+      });
+    }
+
+    const compositeScore = (s: Scored): number =>
+      s.relevance * 0.6 + s.recency * 0.25 + Math.min(s.importance, 1) * 0.15;
+
+    scored.sort((a, b) => compositeScore(b) - compositeScore(a));
+
+    const topRows = scored.slice(0, topK).map((s) => s.row);
+    return topRows.map(rowToMessage);
+  }
+
+  async getConversationHistory(limit?: number): Promise<Message[]> {
+    this.ensureOpen();
+    const rows = this.storage.getActiveMessages(undefined, limit);
+    return rows.map(rowToMessage);
+  }
+
+  async getConversation(id: string, limit?: number): Promise<Message[]> {
+    this.ensureOpen();
+    const rows = this.storage.getActiveMessages(id, limit);
+    return rows.map(rowToMessage);
+  }
+
+  async listConversations(offset = 0, limit = 50): Promise<Message[]> {
+    this.ensureOpen();
+    const rows = this.storage.getAllMessages(offset, limit);
+    return rows.map(rowToMessage);
+  }
+
+  // ============================================================
+  //  L3 长期记忆（持久化）
+  // ============================================================
+
+  async searchMemory(query: string, topK = 5): Promise<ScoredMemoryItem[]> {
+    this.ensureOpen();
+    const queryVector = await this.config.embedding.embed(query);
+    const searchResults = this.vectorIndex.search(queryVector, topK);
+
+    const items: ScoredMemoryItem[] = [];
+    for (const { id, score } of searchResults) {
+      const row = this.storage.getLongTermMemory(id);
+      if (!row || row.is_active !== 1) continue;
+
+      // Refresh access on hit so decay / forgetting uses latest access time
+      this.storage.refreshAccess(row.id);
+
+      items.push({
+        ...rowToMemoryItem(row),
+        score,
+      });
+    }
+    return items;
+  }
+
   async saveMemory(
     category: MemoryCategory,
     key: string,
@@ -219,6 +283,39 @@ export class AgentMemoryImpl implements AgentMemory {
   ): Promise<string> {
     this.ensureOpen();
     return this.saveMemoryInternal(category, key, value, confidence);
+  }
+
+  async deleteMemory(id: string): Promise<void> {
+    this.ensureOpen();
+    const row = this.storage.getLongTermMemory(id);
+    if (!row) throw new MemoryNotFoundError(id);
+
+    this.storage.softDeleteMemory(id);
+    this.vectorIndex.remove(id);
+
+    this.audit.log({ action: 'delete_memory', targetId: id });
+  }
+
+  async listMemories(filter?: MemoryFilter): Promise<MemoryItem[]> {
+    this.ensureOpen();
+    const rows = this.storage.listLongTermMemories(
+      filter
+        ? {
+            category: filter.category,
+            isActive: filter.isActive === undefined ? undefined : filter.isActive ? 1 : 0,
+            createdAfter: filter.createdAfter,
+            createdBefore: filter.createdBefore,
+          }
+        : undefined,
+    );
+    return rows.map(rowToMemoryItem);
+  }
+
+  async refreshAccess(id: string): Promise<void> {
+    this.ensureOpen();
+    const row = this.storage.getLongTermMemory(id);
+    if (!row) throw new MemoryNotFoundError(id);
+    this.storage.refreshAccess(id);
   }
 
   /** Internal save — also used by archive scheduler */
@@ -276,7 +373,7 @@ export class AgentMemoryImpl implements AgentMemory {
   }
 
   // ============================================================
-  //  Knowledge Base
+  //  知识库（KB）
   // ============================================================
 
   async addKnowledge(
@@ -314,43 +411,6 @@ export class AgentMemoryImpl implements AgentMemory {
   async searchKnowledge(query: string, topK = 5): Promise<ScoredKnowledgeChunk[]> {
     this.ensureOpen();
     return this.knowledgeBase.search(query, topK);
-  }
-
-  // ============================================================
-  //  Manage
-  // ============================================================
-
-  async deleteMemory(id: string): Promise<void> {
-    this.ensureOpen();
-    const row = this.storage.getLongTermMemory(id);
-    if (!row) throw new MemoryNotFoundError(id);
-
-    this.storage.softDeleteMemory(id);
-    this.vectorIndex.remove(id);
-
-    this.audit.log({ action: 'delete_memory', targetId: id });
-  }
-
-  async listMemories(filter?: MemoryFilter): Promise<MemoryItem[]> {
-    this.ensureOpen();
-    const rows = this.storage.listLongTermMemories(
-      filter
-        ? {
-            category: filter.category,
-            isActive: filter.isActive === undefined ? undefined : filter.isActive ? 1 : 0,
-            createdAfter: filter.createdAfter,
-            createdBefore: filter.createdBefore,
-          }
-        : undefined,
-    );
-    return rows.map(rowToMemoryItem);
-  }
-
-  async refreshAccess(id: string): Promise<void> {
-    this.ensureOpen();
-    const row = this.storage.getLongTermMemory(id);
-    if (!row) throw new MemoryNotFoundError(id);
-    this.storage.refreshAccess(id);
   }
 
   // ============================================================
@@ -479,12 +539,6 @@ export class AgentMemoryImpl implements AgentMemory {
         vectorIndexBytes: vectorBytes,
       },
     };
-  }
-
-  async listConversations(offset = 0, limit = 50): Promise<Message[]> {
-    this.ensureOpen();
-    const rows = this.storage.getAllMessages(offset, limit);
-    return rows.map(rowToMessage);
   }
 
   async runMaintenance(): Promise<MaintenanceResult> {
