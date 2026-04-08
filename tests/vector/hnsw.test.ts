@@ -105,6 +105,32 @@ describe('VectorIndex', () => {
     vi.close();
   });
 
+  it('persists maxElements in meta and reloads capacity', async () => {
+    const vi = new VectorIndex(dir, 4, 2);
+    await vi.initialize();
+
+    // Trigger at least one resize
+    vi.add('a', [1, 0, 0, 0]);
+    vi.add('b', [0, 1, 0, 0]);
+    vi.add('c', [0, 0, 1, 0]);
+    vi.save();
+    vi.close();
+
+    const metaPath = path.join(dir, 'vectors', 'meta.json');
+    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as {
+      maxElements?: number;
+    };
+    expect(typeof meta.maxElements).toBe('number');
+    expect((meta.maxElements as number)).toBeGreaterThanOrEqual(2);
+
+    // Re-open with a different requested maxElements and ensure we can still add
+    const vi2 = new VectorIndex(dir, 4, 10);
+    await vi2.initialize();
+    vi2.add('d', [0, 0, 0, 1]);
+    expect(vi2.getSize()).toBe(4);
+    vi2.close();
+  });
+
   it('getIndexFileSize returns 0 before save', async () => {
     const vi = new VectorIndex(dir, 4, 100);
     await vi.initialize();

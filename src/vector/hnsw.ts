@@ -35,6 +35,23 @@ export class VectorIndex {
       this.idMap = new Map(Object.entries(meta.idMap).map(([k, v]) => [k, v as number]));
       this.labelMap = new Map(Object.entries(meta.labelMap).map(([k, v]) => [Number(k), v as string]));
       this.nextLabel = meta.nextLabel;
+
+      // Determine maxElements from meta (new field), or fall back for
+      // backward compatibility with older meta files.
+      const storedMax = (meta as Partial<IndexMeta> & { maxElements?: number }).maxElements;
+      if (typeof storedMax === 'number' && storedMax > 0) {
+        // Use stored capacity, but allow constructor to request a higher one.
+        const requested = this.maxElements;
+        this.maxElements = storedMax;
+        if (requested > this.maxElements) {
+          this.maxElements = requested;
+          this.index.resizeIndex(this.maxElements);
+        }
+      } else {
+        // Old meta without maxElements: ensure capacity is safely above usage.
+        this.maxElements = Math.max(this.maxElements, this.nextLabel * 2 || this.maxElements);
+        this.index.resizeIndex(this.maxElements);
+      }
     } else {
       this.index.initIndex(this.maxElements);
     }
@@ -53,7 +70,20 @@ export class VectorIndex {
         this.maxElements *= 2;
       }
       const label = this.nextLabel++;
-      this.index.addPoint(vector, label);
+      try {
+        this.index.addPoint(vector, label);
+      } catch (err) {
+        // Defensive: if underlying index capacity is smaller than we
+        // believe (e.g. older index.bin), grow and retry once.
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('The number of elements exceeds the specified limit')) {
+          this.index.resizeIndex(this.maxElements * 2);
+          this.maxElements *= 2;
+          this.index.addPoint(vector, label);
+        } else {
+          throw err;
+        }
+      }
       this.idMap.set(id, label);
       this.labelMap.set(label, id);
     }
@@ -107,6 +137,7 @@ export class VectorIndex {
       idMap: Object.fromEntries(this.idMap),
       labelMap: Object.fromEntries(this.labelMap),
       nextLabel: this.nextLabel,
+      maxElements: this.maxElements,
     };
     fs.writeFileSync(this.metaPath, JSON.stringify(meta));
   }
@@ -140,4 +171,5 @@ interface IndexMeta {
   idMap: Record<string, number>;
   labelMap: Record<number, string>;
   nextLabel: number;
+  maxElements: number;
 }
