@@ -71,6 +71,35 @@ export class RetrievalEngine {
       });
     }
 
+    if (results.length === 0 && messages.length > 0) {
+      const byConv = new Map<string, ConversationRow[]>();
+      for (const msg of messages) {
+        const conv = byConv.get(msg.conversation_id);
+        if (conv) {
+          conv.push(msg);
+        } else {
+          byConv.set(msg.conversation_id, [msg]);
+        }
+      }
+      const sortedConvs = [...byConv.values()]
+        .map((msgs) => [...msgs].sort((a, b) => a.created_at - b.created_at))
+        .sort((a, b) => b[b.length - 1].created_at - a[a.length - 1].created_at);
+      const latestConvs = sortedConvs.slice(0, 2);
+      for (const conv of latestConvs) {
+        for (const msg of conv) {
+          results.push({
+            type: 'conversation' as const,
+            id: msg.id,
+            text: `[${this.roleLabel(msg.role)}] ${msg.content}`,
+            relevance: 0.1,
+            recency: 1,
+            importance: msg.importance,
+            tokenCount: msg.token_count,
+          });
+        }
+      }
+    }
+
     return Promise.resolve(results);
   }
 
