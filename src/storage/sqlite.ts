@@ -114,10 +114,37 @@ export class SqliteStorage {
       : (this.db.prepare(sql).all() as ConversationRow[]);
   }
 
+  getConversations(limit?: number): ConversationRow[] {
+    if (!limit) {
+      return this.db
+        .prepare(`SELECT * FROM conversations WHERE is_archived = 0 ORDER BY created_at ASC`)
+        .all() as ConversationRow[];
+    }
+    const convIds = this.db
+      .prepare(`SELECT DISTINCT conversation_id FROM conversations WHERE is_archived = 0 ORDER BY created_at ASC LIMIT ?`)
+      .all(limit) as { conversation_id: string }[];
+    if (convIds.length === 0) return [];
+    const placeholders = convIds.map(() => '?').join(',');
+    return this.db
+      .prepare(`SELECT * FROM conversations WHERE is_archived = 0 AND conversation_id IN (${placeholders}) ORDER BY conversation_id, created_at ASC`)
+      .all(...convIds.map((c) => c.conversation_id)) as ConversationRow[];
+  }
+
   getAllMessages(offset: number, limit: number): ConversationRow[] {
     return this.db
       .prepare(`SELECT * FROM conversations ORDER BY created_at ASC LIMIT ? OFFSET ?`)
       .all(limit, offset) as ConversationRow[];
+  }
+
+  listConversations(offset: number, limit: number): ConversationRow[] {
+    const convIds = this.db
+      .prepare(`SELECT DISTINCT conversation_id FROM conversations ORDER BY created_at ASC LIMIT ? OFFSET ?`)
+      .all(limit, offset) as { conversation_id: string }[];
+    if (convIds.length === 0) return [];
+    const placeholders = convIds.map(() => '?').join(',');
+    return this.db
+      .prepare(`SELECT * FROM conversations WHERE conversation_id IN (${placeholders}) ORDER BY conversation_id, created_at ASC`)
+      .all(...convIds.map((c) => c.conversation_id)) as ConversationRow[];
   }
 
   getArchiveCandidates(beforeTimestamp: number, maxBatch: number): ConversationRow[] {

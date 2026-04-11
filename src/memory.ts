@@ -184,24 +184,15 @@ export class AgentMemoryImpl implements AgentMemory {
     const now = Date.now();
 
     type Scored = {
-      row: {
-        id: number;
-        conversation_id: string;
-        role: string;
-        content: string;
-        token_count: number;
-        metadata: string | null;
-        created_at: number;
-        importance: number;
-      };
+      conversation_id: string;
       relevance: number;
       recency: number;
       importance: number;
     };
 
-    const scored: Scored[] = [];
+    const convMessages = new Map<string, { msg: typeof messages[0]; relevance: number }[]>();
 
-    for (const msg of messages as Scored['row'][]) {
+    for (const msg of messages) {
       const contentLower = msg.content.toLowerCase();
       let matchCount = 0;
       for (const term of queryTerms) {
@@ -209,15 +200,39 @@ export class AgentMemoryImpl implements AgentMemory {
       }
       if (matchCount === 0 && queryTerms.length > 0) continue;
 
+      if (!convMessages.has(msg.conversation_id)) {
+        convMessages.set(msg.conversation_id, []);
+      }
       const relevance = queryTerms.length > 0 ? matchCount / queryTerms.length : 0.3;
-      const ageMs = now - msg.created_at;
+      convMessages.get(msg.conversation_id)!.push({ msg, relevance });
+    }
+
+    if (convMessages.size === 0) {
+      return [];
+    }
+
+    const scored: Scored[] = [];
+
+    for (const [convId, convData] of convMessages) {
+      let totalRelevance = 0;
+      let maxImportance = 0;
+      let minCreatedAt = Infinity;
+
+      for (const { msg, relevance } of convData) {
+        totalRelevance += relevance;
+        if (msg.importance > maxImportance) maxImportance = msg.importance;
+        if (msg.created_at < minCreatedAt) minCreatedAt = msg.created_at;
+      }
+
+      const avgRelevance = totalRelevance / convData.length;
+      const ageMs = now - minCreatedAt;
       const recency = Math.exp(-ageMs / (24 * 3600 * 1000));
 
       scored.push({
-        row: msg,
-        relevance,
+        conversation_id: convId,
+        relevance: avgRelevance,
         recency,
-        importance: msg.importance,
+        importance: maxImportance,
       });
     }
 
@@ -226,13 +241,21 @@ export class AgentMemoryImpl implements AgentMemory {
 
     scored.sort((a, b) => compositeScore(b) - compositeScore(a));
 
-    const topRows = scored.slice(0, topK).map((s) => s.row);
-    return topRows.map(rowToMessage);
+    const topConvIds = scored.slice(0, topK).map((s) => s.conversation_id);
+
+    const result: (typeof messages) = [];
+    for (const convId of topConvIds) {
+      const convData = convMessages.get(convId)!;
+      convData.sort((a, b) => a.msg.created_at - b.msg.created_at);
+      result.push(...convData.map((d) => d.msg));
+    }
+
+    return result.map(rowToMessage);
   }
 
   async getConversationHistory(limit?: number): Promise<Message[]> {
     this.ensureOpen();
-    const rows = this.storage.getActiveMessages(undefined, limit);
+    const rows = this.storage.getConversations(limit);
     return rows.map(rowToMessage);
   }
 
@@ -242,9 +265,9 @@ export class AgentMemoryImpl implements AgentMemory {
     return rows.map(rowToMessage);
   }
 
-  async listConversations(offset = 0, limit = 50): Promise<Message[]> {
+  async listConversations(offset = 0, limit = 10): Promise<Message[]> {
     this.ensureOpen();
-    const rows = this.storage.getAllMessages(offset, limit);
+    const rows = this.storage.listConversations(offset, limit);
     return rows.map(rowToMessage);
   }
 

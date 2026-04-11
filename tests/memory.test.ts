@@ -116,8 +116,10 @@ describe('AgentMemoryImpl', () => {
       expect(history[0].metadata).toEqual({ tool: 'test' });
     });
 
-    it('respects limit parameter', async () => {
-      for (let i = 0; i < 5; i++) await memory.appendMessage('default', 'user', `msg${i}`);
+    it('respects limit parameter as conversation count', async () => {
+      for (let i = 0; i < 5; i++) {
+        await memory.appendMessage(`conv${i}`, 'user', `msg${i}`);
+      }
       const limited = await memory.getConversationHistory(3);
       expect(limited).toHaveLength(3);
     });
@@ -146,11 +148,13 @@ describe('AgentMemoryImpl', () => {
   });
 
   describe('listConversations', () => {
-    it('returns paginated results', async () => {
-      for (let i = 0; i < 5; i++) await memory.appendMessage('default', 'user', `msg${i}`);
-      const page = await memory.listConversations(2, 2);
+    it('returns paginated results by conversation', async () => {
+      for (let i = 0; i < 5; i++) {
+        await memory.appendMessage(`conv${i}`, 'user', `msg${i}`);
+      }
+      const page = await memory.listConversations(0, 2);
       expect(page).toHaveLength(2);
-      expect(page[0].content).toBe('msg2');
+      expect(page[0].conversationId).toBe('conv0');
     });
   });
 
