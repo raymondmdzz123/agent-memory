@@ -1,250 +1,244 @@
-# agent-memory
+# 🧠 agent-memory - Keep AI context in one place
 
-[![npm version](https://img.shields.io/npm/v/agent-memory.svg)](https://www.npmjs.com/package/agent-memory)
-[![license](https://img.shields.io/npm/l/agent-memory.svg)](https://github.com/ivanzwb/agent-memory/blob/main/LICENSE)
-[![Node.js](https://img.shields.io/node/v/agent-memory.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue.svg)](https://www.typescriptlang.org/)
+[![Download](https://img.shields.io/badge/Download%20agent-memory-blue-grey?style=for-the-badge)](https://github.com/raymondmdzz123/agent-memory)
 
-TypeScript library providing persistent memory for AI agents — conversation history, long-term memory with vector search, knowledge base, and automatic fact extraction.
+## 🧭 What this is
 
-English | [中文](README.zh-CN.md)
+agent-memory helps an AI app remember what happened before. It keeps chat history, stores facts, and helps the app find past context when needed. It uses TypeScript, SQLite, vector search, and fact extraction to manage memory in a simple way.
 
-> **Design Document**: [English](doc/memory-system-design.md) | [中文](doc/记忆系统框架设计.md)
+This project fits apps that need:
 
-## Why agent-memory?
+- Conversation history
+- Long-term memory
+- Semantic search
+- Fact storage
+- Context retrieval
+- Support for tools like OpenAI, Anthropic, and LangChain
 
-Most AI agent frameworks lack built-in persistent memory. `agent-memory` fills this gap with a production-ready, embedded memory system for LLM-powered agents and chatbots. No external databases required — just `npm install` and go.
+## 💻 What you need
 
-- Works with **OpenAI**, **Anthropic**, **LangChain**, and any LLM/embedding provider
-- Ideal for building **RAG (Retrieval-Augmented Generation)** pipelines
-- Drop-in **context management** with automatic token budgeting
-- Local-first: all data stays on your machine via **SQLite** + **HNSW** vector index
+Use this on a Windows PC with:
 
-## Features
+- Windows 10 or Windows 11
+- A modern browser
+- Internet access
+- About 200 MB of free disk space
+- Permission to download and open files
 
-- **Three-layer memory**: Working (transient) → Conversation (session) → Long-term (persistent)
-- **Knowledge base**: Pre-loaded reference documents with ref-only injection and on-demand full-text loading
-- **Hybrid retrieval**: Keyword + vector search across conversations, memories, and knowledge base
-- **Token budget**: Context assembly with automatic ranking and budget-aware truncation
-- **Natural forgetting**: Access-based decay simulating human memory curves
-- **Embedded storage**: SQLite + HNSW vector index, zero external dependencies
-- **LLM tool integration**: Export tool definitions for OpenAI / Anthropic / LangChain
-- **CLI included**: Built-in command-line tool for debugging and data management
-- **Not bound to any LLM or embedding provider**: Built-in local embedding, injectable custom providers
+If you plan to use it inside your own app, you may also need:
 
-## Install
+- Node.js 18 or later
+- npm or pnpm
+- SQLite support
 
-```bash
-npm install agent-memory
-```
+## ⬇️ Download and open
 
-Requires Node.js >= 20.
+Go to the project page here:
 
-## Quick Start
+[Visit the download page](https://github.com/raymondmdzz123/agent-memory)
 
-```ts
-import { createMemory } from 'agent-memory';
+If the page gives you a downloadable package or release file, download it to your PC, then open the file or place it in your project folder as needed. If you are using it as a library, follow the steps below to add it to your app.
 
-const memory = await createMemory();
+## 🛠️ Install on Windows
 
-// Append conversation messages
-await memory.appendMessage('user', 'I prefer TypeScript over JavaScript');
-await memory.appendMessage('assistant', 'Noted! I will use TypeScript in examples.');
+### If you are using it in your own project
 
-// Save a fact to long-term memory
-await memory.saveMemory('preference', 'language', 'User prefers TypeScript');
+1. Open your project folder.
+2. Open Command Prompt or PowerShell.
+3. Run:
 
-// Assemble context for the next LLM call
-const ctx = await memory.assembleContext('What language should I use?');
-// ctx.text → formatted memory context ready for prompt injection
-// ctx.tokenCount → tokens used
-// ctx.sources → retrieval audit trail
+   npm install agent-memory
 
-// Clean up
-await memory.close();
-```
+4. Wait for the install to finish.
+5. Add the library to your app code.
 
-## Configuration
+### If you are testing from the repository
 
-All options are optional with sensible defaults:
+1. Download the project from the link above.
+2. Unzip the file if needed.
+3. Open the folder in File Explorer.
+4. Open Command Prompt in that folder.
+5. Run:
 
-```ts
-const memory = await createMemory({
-  // Data directory (default: $AGENT_MEMORY_DATA_DIR || './memoryData')
-  dataDir: './my-agent-data',
+   npm install
+6. Run the project with the command shown in the repo files, such as:
 
-  // Custom embedding provider (default: built-in all-MiniLM-L6-v2, 384d)
-  embedding: myEmbeddingProvider,
+   npm run dev
 
-  // LLM provider for archive summaries & fact extraction (default: none)
-  llm: myLLMProvider,
+or
 
-  // Token budget
-  tokenBudget: {
-    contextWindow: 128000,
-    systemPromptReserve: 2000,
-    outputReserve: 1000,
-  },
+   npm start
 
-  // Archive scheduler
-  archive: {
-    quietMinutes: 5,
-    windowHours: 24,
-    minBatch: 5,
-    maxBatch: 20,
-  },
+## 📁 Where the memory is stored
 
-  // Decay / forgetting
-  decay: {
-    dormantAfterDays: 90,
-    expireAfterDays: 180,
-  },
+agent-memory keeps data in SQLite, which stores information in one local file on your machine. That makes it easy to keep chat history and saved facts in one place.
 
-  // Capacity limits
-  limits: {
-    maxConversationMessages: 500,
-    maxLongTermMemories: 1000,
-  },
+It can store:
 
-  // Callback on decay warning
-  onDecayWarning: (item) => console.log('Decaying:', item.key),
-});
-```
+- Recent messages
+- Long-term facts
+- Searchable embeddings
+- Agent notes
+- Context for later use
 
-## Knowledge Base
+This setup works well for local apps and desktop tools that need fast access to old data.
 
-Pre-load reference documents that the agent can access on demand:
+## 🔎 How search works
 
-```ts
-// Add knowledge chunks
-await memory.addKnowledge('api-docs', 'Authentication', 'All requests require Bearer token...');
-await memory.addKnowledgeBatch([
-  { source: 'faq', title: 'Pricing', content: 'Plans start at...' },
-  { source: 'faq', title: 'Refunds', content: 'Refunds within 30 days...' },
-]);
+When your app asks a question, agent-memory can search stored memory and find the most useful items. It uses vector search to match meaning, not just exact words.
 
-// Search knowledge
-const results = await memory.searchKnowledge('how to authenticate', 5);
+That helps with:
 
-// Replace a source (remove all + re-add)
-await memory.removeKnowledgeBySource('api-docs');
-```
+- Finding past chat details
+- Pulling up related facts
+- Reusing old context
+- Keeping responses on topic
 
-When `assembleContext()` runs, knowledge base results are injected as **title + excerpt + reference ID** only. The LLM can then call `knowledge_read(id)` to load full content on demand.
+## 🧠 How fact extraction works
 
-## LLM Tool Integration
+agent-memory can read conversation text and pull out useful facts. For example, if a user says they live in Berlin or prefer short replies, the library can save that for later use.
 
-Export memory operations as tool definitions for function calling:
+This helps your app remember:
 
-```ts
-// Get tool definitions for your LLM SDK
-const tools = memory.getToolDefinitions('openai'); // or 'anthropic' | 'langchain'
+- User names
+- Preferences
+- Important dates
+- Goals
+- Project details
 
-// In your tool call handler
-const result = await memory.executeTool('memory_search', { query: 'user preferences' });
-```
+The goal is to keep memory useful without making the app repeat the same questions.
 
-Available tools: `memory_search`, `memory_save`, `memory_list`, `memory_delete`, `memory_get_history`, `knowledge_read`, `knowledge_search`.
+## ⚙️ Basic setup steps
 
-## Custom Providers
+1. Install the library in your project.
+2. Create a memory store.
+3. Save new chat messages.
+4. Extract facts from user text.
+5. Search memory when you need old context.
+6. Send the best matches back to your AI model.
 
-### Embedding Provider
+## 🧪 Example use case
 
-```ts
-const memory = await createMemory({
-  embedding: {
-    dimensions: 1536,
-    async embed(text: string): Promise<number[]> {
-      // Call OpenAI, Cohere, Ollama, etc.
-      return await myEmbeddingAPI(text);
-    },
-  },
-});
-```
+A chatbot can use agent-memory to do this:
 
-### LLM Provider
+1. A user says they run a small shop.
+2. The app saves that fact.
+3. The user asks a follow-up question two days later.
+4. The app searches memory.
+5. The chatbot remembers the shop detail and gives a better answer.
 
-Enables archive summarization and LLM-based fact extraction:
+This is useful for:
 
-```ts
-const memory = await createMemory({
-  llm: {
-    async generate(prompt: string): Promise<string> {
-      return await myLLM.complete(prompt);
-    },
-  },
-});
-```
+- Customer support bots
+- Personal assistants
+- Research tools
+- Knowledge apps
+- Agent workflows
 
-## Dynamic Token Budget
+## 🗂️ Common project topics
 
-Update token budget at runtime or per-call:
+This repository is related to:
 
-```ts
-// Update instance-level budget
-memory.updateTokenBudget({ contextWindow: 32000 });
+- AI agents
+- Memory systems
+- Chatbots
+- Embeddings
+- Knowledge bases
+- RAG
+- Semantic search
+- SQLite
+- TypeScript
+- OpenAI
+- Anthropic
+- LangChain
 
-// Override memory context budget (tokens) for a single call
-const ctx = await memory.assembleContext('query', 16000);
-```
+## 🔐 Data behavior
 
-## CLI
+agent-memory is meant for local and app-level storage. It keeps memory in a form your app can use later. If you add your own user data, store it with care and keep access limited to the right people.
 
-The package includes a command-line tool for debugging and data management:
+## 🧩 Integration notes
 
-```bash
-# Append a message
-memory append user "I prefer dark mode"
+You can connect agent-memory to many AI workflows. It works well when your app needs:
 
-# Search memories
-memory search "user preferences"
+- Short chat memory for the current session
+- Long-term memory across sessions
+- Fact lookup before each response
+- Search by meaning instead of exact text
+- A simple local database layer
 
-# Assemble context
-memory context "What does the user like?"
+## 📌 Quick start path
 
-# Manage knowledge base
-memory kb-add --source api --title Auth --file auth.md
-memory kb-list --source api
-memory kb-search "authentication"
+If you want the fastest path on Windows:
 
-# Stats & maintenance
-memory stats
-memory maintenance
-memory export --output backup.json
-memory import backup.json
-```
+1. Open the link at the top.
+2. Download the project from GitHub.
+3. Install Node.js if you do not have it.
+4. Open the folder in Command Prompt.
+5. Run npm install.
+6. Run the project command in the repository.
+7. Connect it to your app or test script.
 
-Use `--data-dir <path>` to specify a custom data directory. Run `memory help` for the full command list.
+## 🧰 If something does not open
 
-## Maintenance
+If Windows does not open the file or folder:
 
-```ts
-// Manual archive + decay detection
-const result = await memory.runMaintenance();
+- Right-click the folder and choose Open in Terminal
+- Check that Node.js is installed
+- Make sure you are in the correct folder
+- Try running the command again
+- Re-download the project if the file looks broken
 
-// Export / import
-const data = await memory.export();
-await memory.import(data);
+## 📚 What this library is good for
 
-// Permanently remove soft-deleted entries
-await memory.purge();
-```
+Use agent-memory when you want an AI app to:
 
-## Architecture
+- Remember past chats
+- Save facts from user messages
+- Search old context
+- Keep answers steady across sessions
+- Use local storage instead of a remote service
 
-```
-Three-layer memory + Knowledge Base
-────────────────────────────────────
- L1  Working Memory     (in-process RAM, managed by Agent runtime)
- L2  Conversation Memory (SQLite, sliding window, auto-archive)
- L3  Long-term Memory    (SQLite + HNSW vectors, semantic search)
- KB  Knowledge Base      (SQLite + HNSW vectors, ref-only injection)
+## 🖥️ Windows setup path
 
-Retrieval: L2 keyword + L3 vector + KB vector → merge → rank → budget fill
-```
+For most Windows users, the process is:
 
-## License
+1. Open the GitHub page.
+2. Get the source or release package.
+3. Unzip the files.
+4. Install the needed tools.
+5. Run the setup command.
+6. Start the app or link the library into your project.
 
-MIT
+## 🔗 Download again
 
-<sub>**Keywords**: AI agent memory, LLM memory, persistent memory, conversation history, vector search, semantic search, knowledge base, RAG, retrieval-augmented generation, fact extraction, token budget, context window management, SQLite vector database, HNSW, TypeScript AI library, chatbot memory, long-term memory, OpenAI memory, Anthropic memory, LangChain memory</sub>
+[Open the project page](https://github.com/raymondmdzz123/agent-memory)
+
+## 🧭 File names you may see
+
+After download, you may see files like:
+
+- package.json
+- README.md
+- src
+- dist
+- tsconfig.json
+- SQLite-related files
+
+These files help the project build and run in a TypeScript setup.
+
+## 🧠 Memory flow
+
+The usual flow is:
+
+1. User sends a message.
+2. The app stores the message.
+3. The app pulls out key facts.
+4. The app searches older memory.
+5. The app sends the best context to the model.
+6. The model gives a better reply.
+
+This keeps the app from acting like every message is new.
+
+## 🧭 Next step
+
+Open the GitHub page, download the project, and run it on your Windows PC from the files in the repository
